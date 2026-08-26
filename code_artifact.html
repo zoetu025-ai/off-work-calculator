@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快樂下班時間計算器</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@600;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', '"Noto Sans TC"', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc;
+            background-image: radial-gradient(circle at 50% 20%, rgba(59, 130, 246, 0.12) 0%, transparent 60%);
+            color: #0f172a;
+        }
+
+        /* Essential Glass Card - Light Mode */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.08);
+        }
+
+        /* Primary Focal Point: Hero Circle Button (Blue Theme) */
+        .hero-circle-btn {
+            background: radial-gradient(circle at 35% 35%, #60a5fa 0%, #2563eb 60%, #1d4ed8 100%);
+            box-shadow: 0 0 35px rgba(59, 130, 246, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.6);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .hero-circle-btn:hover {
+            transform: scale(1.06);
+            box-shadow: 0 0 50px rgba(59, 130, 246, 0.5), inset 0 2px 6px rgba(255, 255, 255, 0.8);
+        }
+        .hero-circle-btn:active {
+            transform: scale(0.95);
+        }
+
+        input[type="time"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            opacity: 0.6;
+        }
+        input[type="time"]::-webkit-calendar-picker-indicator:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 selection:bg-blue-200 selection:text-blue-900">
+
+<div id="app" class="w-full max-w-lg mx-auto">
+
+    <!-- MAIN CONCISE CONTAINER -->
+    <main class="glass-card rounded-3xl p-6 sm:p-8 space-y-6 relative overflow-hidden">
+
+        <!-- Top Badge & Header -->
+        <div class="flex items-center justify-between border-b border-slate-200/80 pb-4">
+            <div class="flex items-center gap-2.5">
+                <span class="text-2xl">🏃‍♂️</span>
+                <h1 class="text-lg font-extrabold tracking-tight text-slate-800">下班時間計算器</h1>
+            </div>
+            <span class="px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-xs font-semibold text-blue-700">
+                8h 工時 + 1.5h 午休
+            </span>
+        </div>
+
+        <!-- INPUTS SECTION -->
+        <div class="space-y-4">
+            
+            <!-- 1. Punch-in Time -->
+            <div>
+                <div class="flex justify-between items-center mb-1.5">
+                    <label class="text-xs font-bold text-slate-600">上班打卡時間</label>
+                    <button @click="setCurrentTimeAsStart" 
+                            class="text-xs font-semibold text-blue-700 hover:text-blue-800 transition bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-md border border-blue-200">
+                        <i class="fa-solid fa-crosshairs mr-1"></i>帶入現在
+                    </button>
+                </div>
+                <input type="time" v-model="startTime" 
+                       class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-slate-800 font-mono text-xl font-bold focus:outline-none focus:border-blue-500 focus:bg-white transition shadow-inner">
+            </div>
+
+            <!-- 2. Leave Hours (请假折抵) -->
+            <div>
+                <div class="flex justify-between items-center mb-1.5">
+                    <label class="text-xs font-bold text-slate-600">今日請假時數</label>
+                    <span class="text-xs font-mono font-bold text-blue-600">
+                        {{ leaveHours > 0 ? `扣除 ${leaveHours} 小時` : '不請假' }}
+                    </span>
+                </div>
+                <div class="grid grid-cols-5 gap-1.5">
+                    <button v-for="lh in [0, 0.5, 1, 2, 4]" :key="lh"
+                            @click="leaveHours = lh"
+                            :class="[
+                                leaveHours === lh 
+                                ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-500/20 border-blue-600' 
+                                : 'bg-slate-100 border-slate-200/80 text-slate-600 hover:bg-slate-200/60',
+                                'py-2 rounded-xl border text-xs transition'
+                            ]">
+                        {{ lh === 0 ? '無' : `${lh}h` }}
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- CORE FOCUS: HERO CIRCULAR BUTTON -->
+        <div class="flex flex-col items-center justify-center pt-2 pb-1">
+            <div class="relative flex items-center justify-center">
+                <!-- Outer Glow Ring -->
+                <div class="absolute w-36 h-36 rounded-full bg-blue-400/20 animate-ping opacity-75 pointer-events-none"></div>
+                
+                <!-- Main Button -->
+                <button @click="calculateAndShow" 
+                        class="hero-circle-btn relative w-32 h-32 rounded-full flex flex-col items-center justify-center text-center cursor-pointer group z-10">
+                    <div class="w-[90%] h-[90%] rounded-full bg-white group-hover:bg-slate-50 transition flex flex-col items-center justify-center p-2 border border-slate-100 shadow-sm">
+                        <i class="fa-solid fa-bolt text-amber-500 text-2xl mb-1 group-hover:scale-125 transition duration-300"></i>
+                        <span class="text-sm font-black text-slate-800">幾點下班？</span>
+                        <span class="text-[10px] text-blue-600 font-semibold mt-0.5">點擊計算</span>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <!-- RESULT DISPLAY PANEL -->
+        <div class="bg-slate-50/90 rounded-2xl p-5 border border-slate-200 text-center space-y-3 shadow-sm">
+            <div class="text-xs font-semibold text-slate-500">預計快樂下班時間</div>
+            
+            <!-- BIG TIME DISPLAY -->
+            <div class="text-5xl font-black font-mono text-blue-600 tracking-tight">
+                {{ offWorkTimeStr }}
+            </div>
+
+            <!-- COUNTDOWN TIMER -->
+            <div class="pt-2 border-t border-slate-200/80 flex justify-center items-center gap-2 text-xs text-slate-600 font-mono">
+                <span class="text-slate-500 font-sans">距離下班剩餘：</span>
+                <span class="bg-white px-2 py-1 rounded border border-slate-200 font-bold text-blue-600 shadow-2xs">
+                    {{ formatCountdown.hours }}時 {{ formatCountdown.minutes }}分 {{ formatCountdown.seconds }}秒
+                </span>
+            </div>
+
+            <!-- SIMPLE PROGRESS BAR -->
+            <div class="pt-1">
+                <div class="w-full bg-slate-200/70 rounded-full h-2.5 overflow-hidden border border-slate-200">
+                    <div class="bg-gradient-to-r from-blue-600 to-indigo-500 h-full transition-all duration-300 rounded-full"
+                         :style="{ width: progressPercent + '%' }"></div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- INSTANT POP-UP MODAL -->
+    <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-sm">
+        <div class="glass-card bg-white border-blue-300/60 rounded-3xl max-w-xs w-full p-6 text-center shadow-2xl relative">
+            
+            <div class="text-4xl mb-2">🎉</div>
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">今日下班時間</h3>
+            
+            <div class="text-4xl font-black font-mono text-blue-600 my-3">
+                {{ offWorkTimeStr }}
+            </div>
+
+            <div class="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs text-slate-600 space-y-1 mb-4">
+                <div class="flex justify-between">
+                    <span class="text-slate-500">上班打卡：</span>
+                    <span class="font-mono font-bold text-slate-800">{{ startTime }}</span>
+                </div>
+                <div v-if="leaveHours > 0" class="flex justify-between text-blue-600 font-medium">
+                    <span>請假扣抵：</span>
+                    <span class="font-mono font-bold">- {{ leaveHours }} 小時</span>
+                </div>
+            </div>
+
+            <button @click="showModal = false" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-sm transition shadow-lg shadow-blue-500/25 cursor-pointer">
+                知道囉！🎉
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
+
+    createApp({
+        setup() {
+            // 取得當前時間 HH:mm 字串
+            const getNowTimeString = () => {
+                const d = new Date();
+                const h = String(d.getHours()).padStart(2, '0');
+                const m = String(d.getMinutes()).padStart(2, '0');
+                return `${h}:${m}`;
+            };
+
+            const startTime = ref(getNowTimeString());
+            const leaveHours = ref(0);
+            const showModal = ref(false);
+            const now = ref(new Date());
+            let timer = null;
+
+            onMounted(() => {
+                timer = setInterval(() => {
+                    now.value = new Date();
+                }, 1000);
+            });
+
+            onUnmounted(() => {
+                if (timer) clearInterval(timer);
+            });
+
+            const setCurrentTimeAsStart = () => {
+                const h = String(now.value.getHours()).padStart(2, '0');
+                const m = String(now.value.getMinutes()).padStart(2, '0');
+                startTime.value = `${h}:${m}`;
+            };
+
+            // Calculated Target Off-Work Date
+            const offWorkDate = computed(() => {
+                if (!startTime.value) return new Date();
+                const [startH, startM] = startTime.value.split(':').map(Number);
+                
+                const target = new Date(now.value);
+                target.setHours(startH, startM, 0, 0);
+
+                // Fixed: (8 hours work - leave hours) + 1.5 hours break (90 minutes)
+                const netWorkMinutes = Math.max(0, (8 - leaveHours.value) * 60);
+                const totalMinutesToAdd = netWorkMinutes + 90;
+                
+                target.setMinutes(target.getMinutes() + totalMinutesToAdd);
+                return target;
+            });
+
+            const offWorkTimeStr = computed(() => {
+                const h = String(offWorkDate.value.getHours()).padStart(2, '0');
+                const m = String(offWorkDate.value.getMinutes()).padStart(2, '0');
+                return `${h}:${m}`;
+            });
+
+            const secondsRemaining = computed(() => {
+                return Math.max(0, Math.floor((offWorkDate.value - now.value) / 1000));
+            });
+
+            const formatCountdown = computed(() => {
+                const h = Math.floor(secondsRemaining.value / 3600);
+                const m = Math.floor((secondsRemaining.value % 3600) / 60);
+                const s = secondsRemaining.value % 60;
+                return {
+                    hours: String(h).padStart(2, '0'),
+                    minutes: String(m).padStart(2, '0'),
+                    seconds: String(s).padStart(2, '0')
+                };
+            });
+
+            const progressPercent = computed(() => {
+                if (!startTime.value) return 0;
+                const [startH, startM] = startTime.value.split(':').map(Number);
+                const startObj = new Date(now.value);
+                startObj.setHours(startH, startM, 0, 0);
+
+                const totalDurationSec = (offWorkDate.value - startObj) / 1000;
+                const elapsedSec = (now.value - startObj) / 1000;
+
+                if (elapsedSec <= 0) return 0;
+                if (elapsedSec >= totalDurationSec) return 100;
+                return (elapsedSec / totalDurationSec) * 100;
+            });
+
+            const calculateAndShow = () => {
+                showModal.value = true;
+                if (typeof confetti === 'function') {
+                    confetti({
+                        particleCount: 80,
+                        spread: 60,
+                        origin: { y: 0.6 }
+                    });
+                }
+            };
+
+            return {
+                startTime,
+                leaveHours,
+                showModal,
+                offWorkTimeStr,
+                formatCountdown,
+                progressPercent,
+                setCurrentTimeAsStart,
+                calculateAndShow
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
