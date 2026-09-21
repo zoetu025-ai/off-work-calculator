@@ -65,6 +65,15 @@
         input[type="time"]::-webkit-calendar-picker-indicator:hover {
             opacity: 1;
         }
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="number"] {
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4 selection:bg-blue-200 selection:text-blue-900">
@@ -109,8 +118,8 @@
                         {{ leaveHint }}
                     </span>
                 </div>
-                <div class="grid grid-cols-4 gap-1.5">
-                    <button v-for="lh in [0, 1, 2, 4]" :key="lh"
+                <div class="grid grid-cols-4 gap-1.5 items-stretch">
+                    <button v-for="lh in [0, 1, 2]" :key="lh"
                             @click="leaveHours = lh"
                             :class="[
                                 leaveHours === lh 
@@ -120,6 +129,20 @@
                             ]">
                         {{ lh === 0 ? '無' : `${lh}h` }}
                     </button>
+                    <label class="relative">
+                        <input type="number" min="0" max="8" step="1" inputmode="numeric"
+                               v-model.number="leaveHours"
+                               @blur="clampLeaveHours"
+                               aria-label="自訂請假時數"
+                               placeholder="時數"
+                               :class="[
+                                   'w-full h-full bg-slate-50 border rounded-xl pl-2 pr-6 py-2 text-center font-mono text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white',
+                                   ![0, 1, 2].includes(leaveHours) && leaveHours > 0
+                                       ? 'border-blue-600 bg-white text-blue-700'
+                                       : 'border-slate-200'
+                               ]">
+                        <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 pointer-events-none">h</span>
+                    </label>
                 </div>
             </div>
 
@@ -228,6 +251,12 @@
             const now = ref(new Date());
             let timer = null;
 
+            const clampLeaveHours = () => {
+                let hours = Number(leaveHours.value);
+                if (!Number.isFinite(hours)) hours = 0;
+                leaveHours.value = Math.min(8, Math.max(0, Math.round(hours)));
+            };
+
             onMounted(() => {
                 timer = setInterval(() => {
                     now.value = new Date();
@@ -276,13 +305,14 @@
                 const [startH, startM] = startTime.value.split(':').map(Number);
                 const start = new Date(now.value);
                 start.setHours(startH, startM, 0, 0);
-                const netWorkMinutes = Math.max(0, (8 - leaveHours.value) * 60);
+                const netWorkMinutes = Math.max(0, (8 - Number(leaveHours.value || 0)) * 60);
                 return addNetWorkMinutes(start, netWorkMinutes);
             });
 
             const leaveHint = computed(() => {
-                if (leaveHours.value === 0) return '不請假';
-                return `淨工時 ${8 - leaveHours.value}h`;
+                const hours = Number(leaveHours.value);
+                if (!hours) return '不請假';
+                return `淨工時 ${Math.max(0, 8 - hours)}h`;
             });
 
             const offWorkDate = computed(() => workDay.value.date);
@@ -338,6 +368,7 @@
                 startTime,
                 leaveHours,
                 leaveHint,
+                clampLeaveHours,
                 showModal,
                 offWorkTimeStr,
                 lunchIncluded,
