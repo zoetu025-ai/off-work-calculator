@@ -81,7 +81,7 @@
                 <h1 class="text-lg font-extrabold tracking-tight text-slate-800">下班時間計算器</h1>
             </div>
             <span class="px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-xs font-semibold text-blue-700">
-                8h 工時 + 1.5h 午休
+                8h 工時 · 午休 12:00–13:30
             </span>
         </div>
 
@@ -106,7 +106,7 @@
                 <div class="flex justify-between items-center mb-1.5">
                     <label class="text-xs font-bold text-slate-600">今日請假時數</label>
                     <span class="text-xs font-mono font-bold text-blue-600">
-                        {{ leaveHours > 0 ? `扣除 ${leaveHours} 小時` : '不請假' }}
+                        {{ leaveHours > 0 ? `淨工時 ${8 - leaveHours}h` : '不請假' }}
                     </span>
                 </div>
                 <div class="grid grid-cols-5 gap-1.5">
@@ -153,6 +153,10 @@
             </div>
 
             <!-- COUNTDOWN TIMER -->
+            <div class="text-[11px] font-semibold" :class="lunchIncluded ? 'text-blue-600' : 'text-slate-500'">
+                {{ lunchIncluded ? '已含午休 12:00–13:30' : '未跨午休，不計入 1.5h' }}
+            </div>
+
             <div class="pt-2 border-t border-slate-200/80 flex justify-center items-center gap-2 text-xs text-slate-600 font-mono">
                 <span class="text-slate-500 font-sans">距離下班剩餘：</span>
                 <span class="bg-white px-2 py-1 rounded border border-slate-200 font-bold text-blue-600 shadow-2xs">
@@ -190,6 +194,10 @@
                 <div v-if="leaveHours > 0" class="flex justify-between text-blue-600 font-medium">
                     <span>請假扣抵：</span>
                     <span class="font-mono font-bold">- {{ leaveHours }} 小時</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">午休：</span>
+                    <span class="font-mono font-bold text-slate-800">{{ lunchIncluded ? '12:00–13:30' : '未跨時段' }}</span>
                 </div>
             </div>
 
@@ -236,21 +244,44 @@
                 startTime.value = `${h}:${m}`;
             };
 
-            // Calculated Target Off-Work Date
-            const offWorkDate = computed(() => {
-                if (!startTime.value) return new Date();
-                const [startH, startM] = startTime.value.split(':').map(Number);
-                
-                const target = new Date(now.value);
-                target.setHours(startH, startM, 0, 0);
+            // 午休為固定時段，只有淨工時跨過這段才計入
+            const LUNCH_START_MINUTES = 12 * 60;
+            const LUNCH_END_MINUTES = 13 * 60 + 30;
 
-                // Fixed: (8 hours work - leave hours) + 1.5 hours break (90 minutes)
+            const addNetWorkMinutes = (startDate, workMinutes) => {
+                const result = new Date(startDate);
+                const dayStart = new Date(result);
+                dayStart.setHours(0, 0, 0, 0);
+
+                const lunchStart = dayStart.getTime() + LUNCH_START_MINUTES * 60 * 1000;
+                const lunchEnd = dayStart.getTime() + LUNCH_END_MINUTES * 60 * 1000;
+                let t = result.getTime();
+
+                if (t >= lunchStart && t < lunchEnd) {
+                    t = lunchEnd;
+                }
+
+                const endIfNoLunch = t + workMinutes * 60 * 1000;
+                const lunchIncluded = t < lunchStart && endIfNoLunch > lunchStart;
+                t = lunchIncluded ? endIfNoLunch + (lunchEnd - lunchStart) : endIfNoLunch;
+
+                result.setTime(t);
+                return { date: result, lunchIncluded };
+            };
+
+            const workDay = computed(() => {
+                if (!startTime.value) {
+                    return { date: new Date(), lunchIncluded: false };
+                }
+                const [startH, startM] = startTime.value.split(':').map(Number);
+                const start = new Date(now.value);
+                start.setHours(startH, startM, 0, 0);
                 const netWorkMinutes = Math.max(0, (8 - leaveHours.value) * 60);
-                const totalMinutesToAdd = netWorkMinutes + 90;
-                
-                target.setMinutes(target.getMinutes() + totalMinutesToAdd);
-                return target;
+                return addNetWorkMinutes(start, netWorkMinutes);
             });
+
+            const offWorkDate = computed(() => workDay.value.date);
+            const lunchIncluded = computed(() => workDay.value.lunchIncluded);
 
             const offWorkTimeStr = computed(() => {
                 const h = String(offWorkDate.value.getHours()).padStart(2, '0');
@@ -303,6 +334,7 @@
                 leaveHours,
                 showModal,
                 offWorkTimeStr,
+                lunchIncluded,
                 formatCountdown,
                 progressPercent,
                 setCurrentTimeAsStart,
