@@ -109,8 +109,8 @@
                         {{ leaveHint }}
                     </span>
                 </div>
-                <div class="grid grid-cols-5 gap-1.5">
-                    <button v-for="lh in [0, 0.5, 1, 2, 4]" :key="lh"
+                <div class="grid grid-cols-4 gap-1.5">
+                    <button v-for="lh in [0, 1, 2, 4]" :key="lh"
                             @click="leaveHours = lh"
                             :class="[
                                 leaveHours === lh 
