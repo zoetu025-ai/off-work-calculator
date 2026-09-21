@@ -118,7 +118,7 @@
                                 : 'bg-slate-100 border-slate-200/80 text-slate-600 hover:bg-slate-200/60',
                                 'py-2 rounded-xl border text-xs transition'
                             ]">
-                        {{ lh === 0 ? '無' : (lh === 4 ? '半天' : `${lh}h`) }}
+                        {{ lh === 0 ? '無' : `${lh}h` }}
                     </button>
                 </div>
             </div>
@@ -248,7 +248,7 @@
             const LUNCH_START_MINUTES = 12 * 60;
             const LUNCH_END_MINUTES = 13 * 60 + 30;
 
-            const addNetWorkMinutes = (startDate, workMinutes, isHalfDayLeave) => {
+            const addNetWorkMinutes = (startDate, workMinutes) => {
                 const result = new Date(startDate);
                 const dayStart = new Date(result);
                 dayStart.setHours(0, 0, 0, 0);
@@ -261,19 +261,7 @@
                     t = lunchEnd;
                 }
 
-                // 上午打卡請半天：做到午休就走，不在 13:30 再回來補時數
-                if (isHalfDayLeave && t < lunchStart) {
-                    result.setTime(lunchStart);
-                    return { date: result, lunchIncluded: false };
-                }
-
                 const endIfNoLunch = t + workMinutes * 60 * 1000;
-                const endsDuringLunch = t < lunchStart && endIfNoLunch > lunchStart && endIfNoLunch <= lunchEnd;
-                if (endsDuringLunch) {
-                    result.setTime(lunchStart);
-                    return { date: result, lunchIncluded: false };
-                }
-
                 const lunchIncluded = t < lunchStart && endIfNoLunch > lunchStart;
                 t = lunchIncluded ? endIfNoLunch + (lunchEnd - lunchStart) : endIfNoLunch;
 
@@ -289,12 +277,11 @@
                 const start = new Date(now.value);
                 start.setHours(startH, startM, 0, 0);
                 const netWorkMinutes = Math.max(0, (8 - leaveHours.value) * 60);
-                return addNetWorkMinutes(start, netWorkMinutes, leaveHours.value === 4);
+                return addNetWorkMinutes(start, netWorkMinutes);
             });
 
             const leaveHint = computed(() => {
                 if (leaveHours.value === 0) return '不請假';
-                if (leaveHours.value === 4) return '半天，午休前下班';
                 return `淨工時 ${8 - leaveHours.value}h`;
             });
 
